@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=XTuner
+Comment=Tuner for Jack Audio Connection Kit
+Exec=xtuner
+Icon=XTuner
+Categories=AudioVideo;Audio;
+Terminal=false
+Name[de_DE]=XTuner.desktop
