@@ -150,6 +150,8 @@ private:
     int main_h;
     int main_w;
     int visible;
+    int mode;
+    float ref_freq;
 
     void set_config(const char *name, const char *client_id, bool op_gui);
     void nsm_show_ui();
@@ -204,6 +206,8 @@ XJack::XJack(PosixSignalHandler& _xsig, nsmhandler::NsmSignalHandler& _nsmsig)
     main_y = 0;
     main_w = 520;
     main_h = 200;
+    mode = 0;
+    ref_freq = 440.0;
     if (getenv("XDG_CONFIG_HOME")) {
         path = getenv("XDG_CONFIG_HOME");
         config_file = path +"/XTuner.conf";
@@ -417,6 +421,8 @@ void XJack::read_config() {
             else if (key.compare("[main_w]") == 0) main_w = std::stoi(value);
             else if (key.compare("[main_h]") == 0) main_h = std::stoi(value);
             else if (key.compare("[visible]") == 0) visible = std::stoi(value);
+            else if (key.compare("[mode]") == 0) mode = std::stoi(value);
+            else if (key.compare("[ref_freq]") == 0) ref_freq = std::stof(value);
             key.clear();
             value.clear();
         }
@@ -435,6 +441,8 @@ void XJack::save_config() {
          outfile << "[main_w] " << main_w << std::endl;
          outfile << "[main_h] " << main_h << std::endl;
          outfile << "[visible] " << visible << std::endl;
+         outfile << "[mode] " << mode << std::endl;
+         outfile << "[ref_freq] " << ref_freq << std::endl;
          outfile.close();
     }
 
@@ -506,12 +514,14 @@ void XJack::win_configure_callback(void *w_, void* user_data) {
 void XJack::ref_freq_changed(void *w_, void* user_data) {
     Widget_t *w = (Widget_t*)w_;
     XJack *xjack = (XJack*)w->parent_struct;
-    tuner_set_ref_freq(xjack->wid[0],adj_get_value(w->adj));
+    xjack->ref_freq = adj_get_value(w->adj);
+    tuner_set_ref_freq(xjack->wid[0],xjack->ref_freq);
 }
 
 void XJack::temperament_changed(void *w_, void* user_data) {
     Widget_t *w = (Widget_t*)w_;
     XJack *xjack = (XJack*)w->parent_struct;
+    xjack->mode = (int)adj_get_value(w->adj);
     tuner_set_temperament(xjack->wid[0],adj_get_value(w->adj));
 }
 
@@ -551,12 +561,14 @@ void XJack::init_gui() {
     wid[1] = add_my_combobox(w, "Mode", model, len, 0, 130, 20, 90, 25);
     wid[1]->func.value_changed_callback = temperament_changed;
     wid[1]->parent_struct = this;
+    combobox_set_active_entry(wid[1],mode);
     tuner_set_temperament(wid[0],adj_get_value(wid[1]->adj));
 
     wid[2] = add_valuedisplay(w, "RefFreq", 60, 20, 50, 25);
     set_adjustment(wid[2]->adj,440.0, 440.0, 427.0, 453.0, 0.1, CL_CONTINUOS);
     wid[2]->func.value_changed_callback = ref_freq_changed;
     wid[2]->parent_struct = this;
+    adj_set_value(wid[2]->adj, ref_freq);
     tuner_set_ref_freq(wid[0],adj_get_value(wid[2]->adj));
     if (!nsmsig.nsm_session_control) show_ui(1);
     
