@@ -135,16 +135,82 @@ void PosixSignalHandler::signal_helper_thread() {
 }
 
 /****************************************************************
+ ** class TunerWatch
+ **
+ ** watch for pitch tracker signal in a extra thread
+ ** 
+ */
+
+class TunerWatch {
+private:
+    std::atomic<bool> _execute;
+    std::thread _thd;
+    std::mutex m;
+
+public:
+    TunerWatch();
+    ~TunerWatch();
+    void stop();
+    void start(Widget_t *w, tuner *xtuner);
+    bool is_running() const noexcept;
+    std::condition_variable cv;
+};
+
+
+TunerWatch::TunerWatch() 
+    : _execute(false) {
+}
+
+TunerWatch::~TunerWatch() {
+    if( _execute.load(std::memory_order_acquire) ) {
+        stop();
+    };
+}
+
+void TunerWatch::stop() {
+    _execute.store(false, std::memory_order_release);
+    if (_thd.joinable()) {
+        cv.notify_one();
+        _thd.join();
+    }
+}
+
+void TunerWatch::start(Widget_t *w, tuner *xtuner) {
+    if( _execute.load(std::memory_order_acquire) ) {
+        stop();
+    };
+    _execute.store(true, std::memory_order_release);
+    _thd = std::thread([this, w, xtuner]() {
+        while (_execute.load(std::memory_order_acquire)) {
+            std::unique_lock<std::mutex> lk(m);
+            cv.wait(lk);
+            XLockDisplay(w->app->dpy);
+            adj_set_value(w->adj, (float)xtuner->get_freq((*xtuner)));
+            expose_widget(w);
+            XFlush(w->app->dpy);
+            XUnlockDisplay(w->app->dpy);
+        }
+    });
+}
+
+bool TunerWatch::is_running() const noexcept {
+    return ( _execute.load(std::memory_order_acquire) && 
+             _thd.joinable() );
+}
+
+/****************************************************************
  ** class XJack
  **
- ** 
+ ** init jack connections and create the GUI
  ** 
  */
 
 class XJack {
 private:
+    Pixmap *icon;
     PosixSignalHandler xsig;
     nsmhandler::NsmSignalHandler& nsmsig;
+    TunerWatch twd;
     int main_x;
     int main_y;
     int main_h;
@@ -166,6 +232,8 @@ private:
     static void draw_window(void *w_, void* user_data);
     static void ref_freq_changed(void *w_, void* user_data);
     static void temperament_changed(void *w_, void* user_data);
+    static void map_callback(void *w_, void* user_data);
+    static void unmap_callback(void *w_, void* user_data);
     static void win_configure_callback(void *w_, void* user_data);
     Widget_t* add_my_combobox(Widget_t *w, const char * label, const char** items,
                         size_t len, int active, int x, int y, int width, int height);
@@ -199,6 +267,7 @@ public:
 XJack::XJack(PosixSignalHandler& _xsig, nsmhandler::NsmSignalHandler& _nsmsig)
     : xsig(_xsig),
      nsmsig(_nsmsig),
+     twd(),
      xtuner(NULL),
      lhc(NULL) {
     client_name = "XTuner";
@@ -246,8 +315,14 @@ XJack::~XJack() {
         xtuner->activate(false, (*xtuner));
         delete xtuner;
     }
+    if (twd.is_running())
+        twd.stop();
     if (lhc)
         delete lhc;
+    if (icon) {
+        XFreePixmap(w->app->dpy, (*icon));
+        icon = NULL;
+    }
 }
 
 /****************************************************************
@@ -264,15 +339,6 @@ void XJack::jack_shutdown (void *arg) {
 int XJack::jack_xrun_callback(void *arg) {
     fprintf (stderr, "Xrun \r");
     return 0;
-}
-
-void XJack::freq_changed_handler() { 
-    //fprintf (stderr, " %f\n",xtuner->get_freq((*xtuner)));
-    XLockDisplay(w->app->dpy);
-    adj_set_value(wid[0]->adj, (float)xtuner->get_freq((*xtuner)));
-    expose_widget(wid[0]);
-    XFlush(w->app->dpy);
-    XUnlockDisplay(w->app->dpy);
 }
 
 int XJack::jack_srate_callback(jack_nframes_t samplerate, void* arg) {
@@ -331,8 +397,8 @@ void XJack::init_jack() {
     jack_nframes_t samplerate =jack_get_sample_rate(client);
     lhc->init_static(samplerate, lhc);
     xtuner->init(samplerate, (*xtuner));
+    twd.start(wid[0], xtuner);
     xtuner->signal_freq_changed().connect(sigc::mem_fun(this, &XJack::freq_changed_handler));
-    
 }
 
 /****************************************************************
@@ -479,6 +545,19 @@ void XJack::show_ui(int present) {
             nsmsig.trigger_nsm_gui_is_hidden();
     }
 }
+// static
+void XJack::map_callback(void *w_, void* user_data) {
+    Widget_t *w = (Widget_t*)w_;
+    XJack *xjack = (XJack*) w->parent_struct;
+    xjack->visible = 1;
+}
+
+// static
+void XJack::unmap_callback(void *w_, void* user_data) {
+    Widget_t *w = (Widget_t*)w_;
+    XJack *xjack = (XJack*) w->parent_struct;
+    xjack->visible = 0;
+}
 
 // static
 void XJack::win_configure_callback(void *w_, void* user_data) {
@@ -511,6 +590,10 @@ void XJack::win_configure_callback(void *w_, void* user_data) {
     xjack->main_h = height;
 }
 
+void XJack::freq_changed_handler() { 
+    twd.cv.notify_one();
+}
+
 void XJack::ref_freq_changed(void *w_, void* user_data) {
     Widget_t *w = (Widget_t*)w_;
     XJack *xjack = (XJack*)w->parent_struct;
@@ -525,7 +608,7 @@ void XJack::temperament_changed(void *w_, void* user_data) {
     tuner_set_temperament(xjack->wid[0],adj_get_value(w->adj));
 }
 
-// shortcut to create comboboxes
+// shortcut to create comboboxe with entrys
 Widget_t* XJack::add_my_combobox(Widget_t *w, const char * label, const char** items,
                                 size_t len, int active, int x, int y, int width, int height) {
     w = add_combobox(w, label, x, y, width, height);
@@ -547,9 +630,12 @@ void XJack::init_gui() {
     app.color_scheme->normal.text[2] = 0.00;
     app.color_scheme->normal.text[3] = 1.00;
     w = create_window(&app, DefaultRootWindow(app.dpy), 0, 0, 520, 200);
+    widget_set_icon_from_png(w,icon,LDVAR(xputty_logo_png));
     widget_set_title(w, client_name.c_str());
     w->label = "XTUNER";
     w->parent_struct = this;
+    w->func.map_notify_callback = map_callback;
+    w->func.unmap_notify_callback = unmap_callback;
     w->func.configure_notify_callback = win_configure_callback;
     w->func.expose_callback = draw_window;
 
@@ -570,6 +656,7 @@ void XJack::init_gui() {
     wid[2]->parent_struct = this;
     adj_set_value(wid[2]->adj, ref_freq);
     tuner_set_ref_freq(wid[0],adj_get_value(wid[2]->adj));
+    XResizeWindow (w->app->dpy, w->widget, main_w, main_h);
     if (!nsmsig.nsm_session_control) show_ui(1);
     
 }
