@@ -266,10 +266,10 @@ public:
 
 XJack::XJack(PosixSignalHandler& _xsig, nsmhandler::NsmSignalHandler& _nsmsig)
     : xsig(_xsig),
-     nsmsig(_nsmsig),
-     twd(),
-     xtuner(NULL),
-     lhc(NULL) {
+    nsmsig(_nsmsig),
+    twd(),
+    xtuner(NULL),
+    lhc(NULL) {
     client_name = "XTuner";
     main_x = 0;
     main_y = 0;
@@ -424,15 +424,13 @@ void XJack::draw_window(void *w_, void* user_data) {
     cairo_text_extents(w->crb,w->label , &extents);
     double tw = extents.width/2.0;
 
-    widget_set_scale(w);
-    cairo_move_to (w->crb, (w->scale.init_width*0.5)-tw, w->scale.init_height-10 );
+    cairo_move_to (w->crb, 260/w->scale.cscale_x - tw , 190 - w->scale.scale_y - w->scale.rcscale_y );
     cairo_show_text(w->crb, w->label);
     cairo_new_path (w->crb);
 
-
     cairo_pattern_t* pat;
 
-    pat = cairo_pattern_create_linear (-1.0, 53, 0, w->scale.init_height-106.0);
+    pat = cairo_pattern_create_linear (-1.0, 53, 0, 94 - w->scale.scale_y);
     cairo_pattern_add_color_stop_rgba (pat, 0,  0.25, 0.25, 0.25, 1.0);
     cairo_pattern_add_color_stop_rgba (pat, 0.25,  0.2, 0.2, 0.2, 1.0);
     cairo_pattern_add_color_stop_rgba (pat, 0.5,  0.15, 0.15, 0.15, 1.0);
@@ -440,12 +438,13 @@ void XJack::draw_window(void *w_, void* user_data) {
     cairo_pattern_add_color_stop_rgba (pat, 1,  0.05, 0.05, 0.05, 1.0);
 
     cairo_set_source (w->crb, pat);
-    cairo_rectangle(w->crb, 53.0, 53.0,w->scale.init_width*0.8,w->scale.init_height-106.0);
+    cairo_rectangle(w->crb, 53.0, 53.0,416 - w->scale.scale_x, 94 - w->scale.scale_y);
     cairo_set_line_width(w->crb,2);
     cairo_stroke(w->crb);
     cairo_pattern_destroy (pat);
     pat = NULL;
-    pat = cairo_pattern_create_linear (-1.0, 58, 0, w->scale.init_height-116.0);
+
+    pat = cairo_pattern_create_linear (-1.0, 58, 0, 84 - w->scale.scale_y);
     cairo_pattern_add_color_stop_rgba (pat, 1,  0.25, 0.25, 0.25, 1.0);
     cairo_pattern_add_color_stop_rgba (pat, 0.75,  0.2, 0.2, 0.2, 1.0);
     cairo_pattern_add_color_stop_rgba (pat, 0.5,  0.15, 0.15, 0.15, 1.0);
@@ -453,12 +452,10 @@ void XJack::draw_window(void *w_, void* user_data) {
     cairo_pattern_add_color_stop_rgba (pat, 0,  0.05, 0.05, 0.05, 1.0);
 
     cairo_set_source (w->crb, pat);
-    cairo_rectangle(w->crb, 58.0, 58.0,w->scale.init_width*0.78,w->scale.init_height-116.0);
+    cairo_rectangle(w->crb, 58.0, 58.0,405.6 - w->scale.scale_x,84 - w->scale.scale_y);
     cairo_stroke(w->crb);
     cairo_pattern_destroy (pat);
     pat = NULL;
-
-    widget_reset_scale(w);
 }
 
 void XJack::set_config(const char *name, const char *client_id, bool op_gui) {
@@ -639,7 +636,19 @@ void XJack::init_gui() {
     w->func.configure_notify_callback = win_configure_callback;
     w->func.expose_callback = draw_window;
 
+    XSizeHints* win_size_hints;
+    win_size_hints = XAllocSizeHints();
+    win_size_hints->flags =  PMinSize|PBaseSize|PWinGravity;
+    win_size_hints->min_width = 280;
+    win_size_hints->min_height = 150;
+    win_size_hints->base_width = 520;
+    win_size_hints->base_height = 200;
+    win_size_hints->win_gravity = CenterGravity;
+    XSetWMNormalHints(w->app->dpy, w->widget, win_size_hints);
+    XFree(win_size_hints);
+
     wid[0] = add_tuner(w, "Freq", 60, 60, 400, 80);
+    wid[0]->scale.gravity = NORTHWEST;
     wid[0]->func.adj_callback = dummy_callback;
 
     const char* model[] = {"12-TET","19-TET","24-TET", "31-TET", "53-TET"};
@@ -647,6 +656,7 @@ void XJack::init_gui() {
     wid[1] = add_my_combobox(w, "Mode", model, len, 0, 130, 20, 90, 25);
     wid[1]->func.value_changed_callback = temperament_changed;
     wid[1]->parent_struct = this;
+    wid[1]->scale.gravity = NONE;
     combobox_set_active_entry(wid[1],mode);
     tuner_set_temperament(wid[0],adj_get_value(wid[1]->adj));
 
@@ -654,6 +664,7 @@ void XJack::init_gui() {
     set_adjustment(wid[2]->adj,440.0, 440.0, 427.0, 453.0, 0.1, CL_CONTINUOS);
     wid[2]->func.value_changed_callback = ref_freq_changed;
     wid[2]->parent_struct = this;
+    wid[2]->scale.gravity = NONE;
     adj_set_value(wid[2]->adj, ref_freq);
     tuner_set_ref_freq(wid[0],adj_get_value(wid[2]->adj));
     XResizeWindow (w->app->dpy, w->widget, main_w, main_h);
