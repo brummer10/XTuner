@@ -18,8 +18,12 @@ check-and-reinit-submodules :
 	fi
 
 clean:
+	@rm -f ./libxputty/xputty/resources/XTuner.png
 
 libxputty: check-and-reinit-submodules
+ifeq (,$(wildcard ./libxputty/xputty/resources/XTuner.png))
+	cp ./src/XTuner.png ./libxputty/xputty/resources/
+endif
 	@exec $(MAKE) -j 1 -C $@ $(MAKECMDGOALS)
 
 $(SUBDIR): libxputty

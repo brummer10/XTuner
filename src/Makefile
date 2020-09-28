@@ -26,7 +26,7 @@
 	NAME = XTuner
 	EXEC_NAME  = $(shell echo $(NAME) | tr A-Z a-z)
 	BUILD_DIR = build
-	VER = 1.4
+	VER = 1.0
 
 	LIB_DIR := ../libxputty/libxputty/
 	HEADER_DIR := $(LIB_DIR)include/
