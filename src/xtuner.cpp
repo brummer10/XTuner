@@ -650,6 +650,11 @@ void XJack::init_gui() {
     wid[0] = add_tuner(w, "Freq", 60, 60, 400, 80);
     wid[0]->scale.gravity = NORTHWEST;
     wid[0]->func.adj_callback = dummy_callback;
+    std::string LANG = getenv("LANG");
+    if (LANG.find("FR") != std::string::npos) {
+        XTuner *xt = (XTuner*)wid[0]->parent_struct;
+        xt->lang = 1;
+    }
 
     const char* model[] = {"12-TET","19-TET","24-TET", "31-TET", "53-TET"};
     size_t len = sizeof(model) / sizeof(model[0]);
@@ -700,6 +705,16 @@ void XJack::exit_handle (int sig) {
  */
 
 int main (int argc, char *argv[]) {
+
+#ifdef ENABLE_NLS
+    // set Message type to locale to fetch localisation support
+    std::setlocale (LC_MESSAGES, "");
+    // set Ctype to C to avoid symbol clashes from different locales
+    std::setlocale (LC_CTYPE, "C");
+    bindtextdomain(GETTEXT_PACKAGE, LOCAL_DIR);
+    bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
+    textdomain(GETTEXT_PACKAGE);
+#endif
 
     if(0 == XInitThreads()) 
         fprintf(stderr, "Warning: XInitThreads() failed\n");
