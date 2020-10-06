@@ -16,6 +16,7 @@ Tuner for Jack Audio Connection Kit
 - libsigc++-2.0-dev
 - libzita-resampler-dev
 - libjack-(jackd2)-dev
+- libfftw3-dev
 
 ## Build
 
