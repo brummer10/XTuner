@@ -276,6 +276,7 @@ XJack::XJack(PosixSignalHandler& _xsig, nsmhandler::NsmSignalHandler& _nsmsig)
     main_w = 520;
     main_h = 200;
     mode = 0;
+    visible = 1;
     ref_freq = 440.0;
     if (getenv("XDG_CONFIG_HOME")) {
         path = getenv("XDG_CONFIG_HOME");
@@ -516,6 +517,7 @@ void XJack::save_config() {
 void XJack::nsm_show_ui() {
     XLockDisplay(w->app->dpy);
     widget_show_all(w);
+    visible = 1;
     XFlush(w->app->dpy);
     XMoveWindow(w->app->dpy,w->widget, main_x, main_y);
     nsmsig.trigger_nsm_gui_is_shown();
@@ -525,6 +527,7 @@ void XJack::nsm_show_ui() {
 void XJack::nsm_hide_ui() {
     XLockDisplay(w->app->dpy);
     widget_hide(w);
+    visible = 0;
     XFlush(w->app->dpy);
     nsmsig.trigger_nsm_gui_is_hidden();
     XUnlockDisplay(w->app->dpy);
@@ -673,7 +676,7 @@ void XJack::init_gui() {
     adj_set_value(wid[2]->adj, ref_freq);
     tuner_set_ref_freq(wid[0],adj_get_value(wid[2]->adj));
     XResizeWindow (w->app->dpy, w->widget, main_w, main_h);
-    if (!nsmsig.nsm_session_control) show_ui(1);
+    if (!nsmsig.nsm_session_control || visible) show_ui(1);
     
 }
 
