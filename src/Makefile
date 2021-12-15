@@ -47,9 +47,9 @@
 	# invoke build files
 	OBJECTS = NsmHandler.cpp  xtuner.cpp
 	## output style (bash colours)
-	BLUE = "\033[1;34m"
-	RED =  "\033[1;31m"
-	NONE = "\033[0m"
+	BLUE = `printf "\033[1;34m"`
+	RED =  `printf "\033[1;31m"`
+	NONE = `printf "\033[0m"`
 
 .PHONY : $(HEADER_DIR)*.h all debug clean install uninstall 
 
