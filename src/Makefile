@@ -38,7 +38,7 @@
 	MAN_DIR ?= $(SHARE_DIR)/man/man1
 
 	# set compile flags
-	CXXFLAGS += -O2 -D_FORTIFY_SOURCE=2 -Wall -fstack-protector -funroll-loops -ffast-math -fomit-frame-pointer \
+	DEFAULT_CXXFLAGS = -O2 -D_FORTIFY_SOURCE=2 -Wall -fstack-protector -funroll-loops -ffast-math -fomit-frame-pointer \
 	-fstrength-reduce $(SSE_CFLAGS)
 	DEBUG_CXXFLAGS += -g -D DEBUG
 	LDFLAGS += -Wl,-z,noexecstack -I./ -I../libxputty/libxputty/include/ \
@@ -60,7 +60,7 @@ all : check $(NAME)
 	else echo $(RED)"sorry, build failed"; fi
 	@echo $(NONE)
 
-debug: CXXFLAGS = $(DEBUG_CXXFLAGS) 
+debug: DEFAULT_CXXFLAGS = $(DEBUG_CXXFLAGS) 
 debug: all
 
 check :
@@ -94,7 +94,7 @@ uninstall :
 	@echo ". ." $(BLUE)", done"$(NONE)
 
 $(NAME) :
-	$(CXX) $(CXXFLAGS) $(OBJECTS) -L. ../libxputty/libxputty/libxputty.a -o $(EXEC_NAME) $(LDFLAGS)
+	$(CXX) $(DEFAULT_CXXFLAGS) $(CXXFLAGS) $(OBJECTS) -L. ../libxputty/libxputty/libxputty.a -o $(EXEC_NAME) $(LDFLAGS)
 
 doc:
 	#pass
