@@ -207,7 +207,6 @@ bool TunerWatch::is_running() const noexcept {
 
 class XJack {
 private:
-    Pixmap *icon;
     PosixSignalHandler xsig;
     nsmhandler::NsmSignalHandler& nsmsig;
     TunerWatch twd;
@@ -320,10 +319,6 @@ XJack::~XJack() {
         twd.stop();
     if (lhc)
         delete lhc;
-    if (icon) {
-        XFreePixmap(w->app->dpy, (*icon));
-        icon = NULL;
-    }
 }
 
 /****************************************************************
@@ -630,7 +625,7 @@ void XJack::init_gui() {
     app.color_scheme->normal.text[2] = 0.00;
     app.color_scheme->normal.text[3] = 1.00;
     w = create_window(&app, DefaultRootWindow(app.dpy), 0, 0, 520, 200);
-    widget_set_icon_from_png(w,icon,LDVAR(XTuner_png));
+    widget_set_icon_from_png(w,LDVAR(XTuner_png));
     widget_set_title(w, client_name.c_str());
     w->label = "XTUNER";
     w->parent_struct = this;
