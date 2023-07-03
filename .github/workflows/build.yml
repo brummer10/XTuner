@@ -1,0 +1,113 @@
+name: build
+
+on: [push]
+#on:
+#  push:
+#    tags:
+#      - 'v*'
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  ####################
+  create-source-archive:
+    runs-on: ubuntu-20.04
+
+    outputs:
+      artifact-name: ${{ env.ARCHIVE_NAME }}
+
+    steps:
+    - name: Check out sources
+      uses: actions/checkout@v3.3.0
+      with:
+        path: XTuner
+        submodules: recursive
+
+    - name: create source package
+      run: tar --exclude=.git* -cjf XTuner.tar.bz2 XTuner
+
+    - name: Set Archive Name
+      run: echo "ARCHIVE_NAME=xtuner-source-code" >> "$GITHUB_ENV"
+
+    - uses: actions/upload-artifact@v3.1.2
+      with:
+        name: ${{ env.ARCHIVE_NAME }}
+        path: XTuner.tar.bz2
+
+  ####################
+  build-linux:
+    runs-on: ubuntu-20.4
+
+    outputs:
+      artifact-name: ${{ env.ARCHIVE_NAME }}
+
+    steps:
+    - name: Check out sources
+      uses: actions/checkout@v3.3.0
+      with:
+        submodules: recursive
+
+    - name: install 
+      run: |
+        sudo apt-get update
+        sudo apt-get install libcairo2-dev libx11-dev liblo-dev libsigc++-2.0-dev libzita-resampler-dev libfftw3-dev libjack-dev
+    - name: build 
+      run: make
+
+    - name: compress
+      run: zip -r xtuner.zip /home/runner/work/XTuner/src/build/xtuner
+
+    - name: Set Archive Name
+      run: echo "ARCHIVE_NAME=XTuner" >> "$GITHUB_ENV"
+
+    - uses: actions/upload-artifact@v3.1.2
+      with:
+        name: ${{ env.ARCHIVE_NAME }}
+        path: xtuner.zip
+
+  ####################
+  release:
+    runs-on: ubuntu-20.04
+
+    outputs:
+      tag-short: ${{ env.TAG_SHORT }}
+
+    needs:
+      - create-source-archive
+      - build-linux
+
+    steps:
+    - name: Set short tag name
+      run: |
+        TAG_SHORT=${{ github.ref_name }} # branch or tag
+        if [[ ${{ github.ref_type }} == 'tag' ]] \
+        && [[ $TAG_SHORT =~ ^v[0-9] ]] ; then
+          TAG_SHORT=${TAG_SHORT:1} # remove leading 'v' from tag (v1.0 -> 1.0)
+        fi
+        echo "TAG_SHORT=$TAG_SHORT" >> "$GITHUB_ENV"
+
+# required?
+#    - name: Move 'Latest' tag
+#      uses: richardsimko/update-tag@v1.0.7
+#      with:
+#        tag_name: Latest
+#      env:
+#        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3.0.2
+
+    - name: Create Archives
+      run: |
+        mv xtuner-source-code/XTuner.tar.bz2 ./XTuner_${{ env.TAG_SHORT }}_src.tar.bz2
+        mv XTuner/xtuner.zip   ./xtuner.zip
+
+    - uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.ref_name }}
+        prerelease: true
+        files: |
+          XTuner_${{ env.TAG_SHORT }}_src.tar.bz2
+          xtuner.zip

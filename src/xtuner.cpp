@@ -638,7 +638,7 @@ void XJack::init_gui() {
     win_size_hints = XAllocSizeHints();
     win_size_hints->flags =  PMinSize|PBaseSize|PWinGravity;
     win_size_hints->min_width = 280;
-    win_size_hints->min_height = 150;
+    win_size_hints->min_height = 200;
     win_size_hints->base_width = 520;
     win_size_hints->base_height = 200;
     win_size_hints->win_gravity = CenterGravity;
