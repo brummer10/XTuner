@@ -1,6 +1,9 @@
 # XTuner
 
-Tuner for Jack Audio Connection Kit 
+Tuner for Jack Audio Connection Kit
+
+![XUiDesigner](https://i.imgur.com/Zcn9ZDS.gif)
+
 
 ## Features
 
@@ -24,3 +27,7 @@ Tuner for Jack Audio Connection Kit
 - git submodule update
 - make
 - sudo make install # will install into /usr/bin
+
+## Binary
+
+[xtuner.zip](https://github.com/brummer10/XTuner/releases/download/master/xtuner.zip)
