@@ -57,7 +57,12 @@ jobs:
       run: make
 
     - name: compress
-      run: zip -r xtuner.zip /home/runner/work/XTuner/XTuner/src/build/xtuner
+      run: |
+        cd /home/runner/work/XTuner/XTuner/src/build
+        zip -r xtuner.zip ./xtuner
+
+    - name: copy
+      run: cp /home/runner/work/XTuner/XTuner/src/build/xtuner.zip .
 
     - name: Set Archive Name
       run: echo "ARCHIVE_NAME=XTuner" >> "$GITHUB_ENV"
