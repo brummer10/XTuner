@@ -8,3 +8,5 @@ Exec=xtuner
 Icon=XTuner
 Categories=AudioVideo;Audio;
 Terminal=false
+X-NSM-Capable=true
+X-NSM-Exec=xtuner
